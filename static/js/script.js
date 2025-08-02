@@ -4,6 +4,9 @@ const userInput = document.getElementById("user-input");
 const sendButton = document.querySelector(".send-button");
 const welcomeScreen = document.getElementById("welcome-screen");
 const chatHistory = document.querySelector(".chat-history");
+const mobileMenuBtn = document.getElementById("mobile-menu-btn");
+const sidebar = document.getElementById("sidebar");
+const mobileSidebarOverlay = document.getElementById("mobile-sidebar-overlay");
 
 let isTyping = false;
 let hasStartedChat = false;
@@ -24,7 +27,68 @@ document.addEventListener("DOMContentLoaded", () => {
   }, 100);
   
   setupKeyboardNavigation();
+  setupMobileSidebar();
 });
+
+function setupMobileSidebar() {
+  // Mobile menu button click handler
+  mobileMenuBtn.addEventListener('click', toggleMobileSidebar);
+  
+  // Mobile close button click handler
+  const mobileCloseBtn = document.getElementById("mobile-close-btn");
+  if (mobileCloseBtn) {
+    mobileCloseBtn.addEventListener('click', closeMobileSidebar);
+  }
+  
+  // Overlay click handler to close sidebar
+  mobileSidebarOverlay.addEventListener('click', closeMobileSidebar);
+  
+  // Close sidebar when clicking on a chat item on mobile
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('.chat-item') && window.innerWidth <= 768) {
+      setTimeout(closeMobileSidebar, 300); // Small delay to allow the chat to load
+    }
+  });
+  
+  // Close sidebar when starting a new chat on mobile
+  const originalStartNewChat = window.startNewChat;
+  window.startNewChat = function() {
+    originalStartNewChat();
+    if (window.innerWidth <= 768) {
+      setTimeout(closeMobileSidebar, 300);
+    }
+  };
+  
+  // Handle window resize
+  window.addEventListener('resize', handleWindowResize);
+}
+
+function handleWindowResize() {
+  // If switching from mobile to desktop, ensure sidebar is visible
+  if (window.innerWidth > 768) {
+    closeMobileSidebar();
+  }
+}
+
+function toggleMobileSidebar() {
+  if (sidebar.classList.contains('active')) {
+    closeMobileSidebar();
+  } else {
+    openMobileSidebar();
+  }
+}
+
+function openMobileSidebar() {
+  sidebar.classList.add('active');
+  mobileSidebarOverlay.classList.add('active');
+  document.body.style.overflow = 'hidden'; // Prevent background scrolling
+}
+
+function closeMobileSidebar() {
+  sidebar.classList.remove('active');
+  mobileSidebarOverlay.classList.remove('active');
+  document.body.style.overflow = ''; // Restore scrolling
+}
 
 function updateMessageCounter() {
   fetch('/message-count')
@@ -130,6 +194,11 @@ function loadChat(chatId) {
   
   renderChatHistory();
   scrollToBottom();
+  
+  // Close mobile sidebar after loading chat
+  if (window.innerWidth <= 768) {
+    setTimeout(closeMobileSidebar, 300);
+  }
 }
 
 function deleteChat(chatId, event) {
