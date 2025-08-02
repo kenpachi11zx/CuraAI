@@ -148,11 +148,3 @@ python app.py
 ### Testing
 - Health check: `curl http://localhost:5000/health`
 - Chat endpoint: `POST /chat` with JSON body
-
-## License
-
-[Your License Here]
-
-## Support
-
-For deployment issues, see [DEPLOYMENT.md](DEPLOYMENT.md) for troubleshooting guides. 
