@@ -9,10 +9,13 @@ let isTyping = false;
 let hasStartedChat = false;
 let currentChatId = null;
 let chatHistoryData = [];
+let messageCount = 0;
+let messageLimit = 10;
 
 document.addEventListener("DOMContentLoaded", () => {
   loadChatHistory();
   userInput.focus();
+  updateMessageCounter();
   
   document.body.style.opacity = '0';
   setTimeout(() => {
@@ -22,6 +25,33 @@ document.addEventListener("DOMContentLoaded", () => {
   
   setupKeyboardNavigation();
 });
+
+function updateMessageCounter() {
+  fetch('/message-count')
+    .then(response => response.json())
+    .then(data => {
+      messageCount = data.count;
+      messageLimit = data.limit;
+      
+      console.log('Message counter updated:', data); // Debug log
+      
+      // Update UI to show message count
+      const counterElement = document.getElementById('message-counter');
+      if (counterElement) {
+        counterElement.textContent = `${messageCount}/${messageLimit}`;
+        if (messageCount >= messageLimit) {
+          counterElement.style.color = '#ff6b6b';
+        } else if (messageCount >= messageLimit * 0.8) {
+          counterElement.style.color = '#ffa726';
+        } else {
+          counterElement.style.color = '#4caf50';
+        }
+      }
+    })
+    .catch(error => {
+      console.error('Error fetching message count:', error);
+    });
+}
 
 function loadChatHistory() {
   const saved = localStorage.getItem('curaai_chat_history');
@@ -164,6 +194,15 @@ function startNewChat() {
   hasStartedChat = true;
   userInput.focus();
   
+  // Reset message counter for new session
+  messageCount = 0;
+  updateMessageCounter();
+  
+  // Re-enable input if it was disabled
+  userInput.disabled = false;
+  sendButton.disabled = false;
+  userInput.placeholder = 'Ask anything...';
+  
   renderChatHistory();
 }
 
@@ -246,31 +285,26 @@ function formatAIResponse(text) {
 }
 
 function showTypingIndicator() {
-  if (!isTyping) {
-    isTyping = true;
-    const typingDiv = document.createElement('div');
-    typingDiv.className = 'chat-message ai typing-indicator';
-    typingDiv.innerHTML = `
-      <div class="message-content">
-        <div class="typing-content">
-          <div class="typing-dots">
-            <div class="typing-dot"></div>
-            <div class="typing-dot"></div>
-            <div class="typing-dot"></div>
-          </div>
-        </div>
-      </div>
-    `;
-    chatBox.appendChild(typingDiv);
-    scrollToBottom();
-  }
+  if (isTyping) return;
+  
+  isTyping = true;
+  const typingDiv = document.createElement("div");
+  typingDiv.className = "typing-indicator";
+  typingDiv.innerHTML = `
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+  `;
+  
+  chatBox.appendChild(typingDiv);
+  chatBox.scrollTop = chatBox.scrollHeight;
 }
 
 function removeTypingIndicator() {
-  const typingIndicator = document.querySelector('.typing-indicator');
+  isTyping = false;
+  const typingIndicator = document.querySelector(".typing-indicator");
   if (typingIndicator) {
     typingIndicator.remove();
-    isTyping = false;
   }
 }
 
@@ -320,13 +354,26 @@ chatForm.addEventListener('submit', async (e) => {
     
     const data = await response.json();
     removeTypingIndicator();
-    appendMessage('ai', data.reply);
+    
+    if (data.limit_reached) {
+      appendMessage('ai', data.reply);
+      setInputState(false);
+      userInput.placeholder = 'Message limit reached';
+      userInput.disabled = true;
+      sendButton.disabled = true;
+    } else {
+      appendMessage('ai', data.reply);
+      // Only update counter if the backend actually counted this message
+      if (data.message_counted) {
+        updateMessageCounter();
+      }
+      setInputState(true);
+    }
     
   } catch (error) {
     console.error('Error:', error);
     removeTypingIndicator();
     showErrorWithRetry('Sorry, there was an error. Please try again.');
-  } finally {
     setInputState(true);
   }
 });

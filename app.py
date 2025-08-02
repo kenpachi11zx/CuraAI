@@ -31,6 +31,10 @@ def create_app(config_name=None):
 app = create_app()
 app.secret_key = app.config['SECRET_KEY']
 
+# Message limit configuration
+MESSAGE_LIMIT = 7  # Maximum messages per user
+user_message_counts = {}  # Track message counts per user
+
 @app.after_request
 def add_security_headers(response):
     response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -45,6 +49,48 @@ def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "version": "1.0.0"
+    })
+
+@app.route("/message-count")
+def get_message_count():
+    """Get current message count for the user"""
+    if "user_id" not in session:
+        logger.info("No user_id in session, returning 0 count")
+        return jsonify({"count": 0, "limit": MESSAGE_LIMIT})
+    
+    user_id = session["user_id"]
+    count = user_message_counts.get(user_id, 0)
+    logger.info(f"Message count request - User: {user_id}, Count: {count}, Limit: {MESSAGE_LIMIT}")
+    return jsonify({
+        "count": count,
+        "limit": MESSAGE_LIMIT,
+        "remaining": max(0, MESSAGE_LIMIT - count)
+    })
+
+@app.route("/reset-messages")
+def reset_messages():
+    """Reset message count for the current user"""
+    if "user_id" not in session:
+        return jsonify({"success": False, "message": "No user session"})
+    
+    user_id = session["user_id"]
+    user_message_counts[user_id] = 0
+    return jsonify({"success": True, "message": "Message count reset"})
+
+@app.route("/debug-messages")
+def debug_messages():
+    """Debug route to check message counts"""
+    if "user_id" not in session:
+        return jsonify({"error": "No user session"})
+    
+    user_id = session["user_id"]
+    count = user_message_counts.get(user_id, 0)
+    return jsonify({
+        "user_id": user_id,
+        "current_count": count,
+        "limit": MESSAGE_LIMIT,
+        "remaining": max(0, MESSAGE_LIMIT - count),
+        "all_counts": user_message_counts
     })
 
 system_prompt = f"""
@@ -223,6 +269,10 @@ def chat():
             session["user_id"] = str(uuid4())
         user_id = session["user_id"]
 
+        # Check message limit
+        if user_id not in user_message_counts:
+            user_message_counts[user_id] = 0
+
         if user_id not in user_context:
             user_context[user_id] = {
                 "age": None,
@@ -286,15 +336,46 @@ def chat():
             context["initial_health_concern"] = user_msg
             context["has_addressed_initial_concern"] = False
 
+        # Only increment message count if we're about to use the AI
+        message_counted = False
+        
+        # Don't count age/gender questions
+        is_age_gender_question = (
+            not context["age"] or 
+            not context["gender"] or
+            "may I know your age" in user_msg.lower() or
+            "let me know your gender" in user_msg.lower()
+        )
+        
+        if not is_age_gender_question:
+            logger.info(f"Incrementing message count for user {user_id}. Current count: {user_message_counts[user_id]}")
+            if user_message_counts[user_id] >= MESSAGE_LIMIT:
+                return jsonify({
+                    "reply": f"⚠️ I've reached my API limit for this session. I can only process {MESSAGE_LIMIT} consultations per session to manage costs. Please refresh the page to start a new session or try again later. Thank you for understanding!",
+                    "limit_reached": True
+                }), 429
+            user_message_counts[user_id] += 1
+            message_counted = True
+            logger.info(f"Message count incremented. New count: {user_message_counts[user_id]}")
+        else:
+            logger.info(f"Not incrementing message count - Age/gender question detected")
+
         try:
             if is_health_concern and (not context["age"] or not context["gender"]):
                 return jsonify({"reply": "Please provide BOTH your age and gender first so I can give you appropriate medical advice."})
             
-            model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_prompt)
+            try:
+                model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_prompt)
+            except TypeError:
+                model = genai.GenerativeModel("gemini-1.5-flash")
+            
             preface = f"The user is a {context['age']} year old {context['gender']}. DO NOT ask for age or gender again as this information has already been provided."
             
             if context["initial_health_concern"] and not context["has_addressed_initial_concern"] and context["age"] and context["gender"]:
-                initial_input = f"{preface}\nUser: {context['initial_health_concern']}"
+                if hasattr(model, 'system_instruction'):
+                    initial_input = f"{preface}\nUser: {context['initial_health_concern']}"
+                else:
+                    initial_input = f"{system_prompt}\n\n{preface}\nUser: {context['initial_health_concern']}"
                 chat_session = model.start_chat(history=context["history"])
                 response = chat_session.send_message(initial_input)
                 ai_reply = response.text.strip()
@@ -313,7 +394,10 @@ def chat():
                     return jsonify({"reply": "Thank you. Could you also let me know your gender (male or female)?"})
                 
             else:
-                full_input = f"{preface}\nUser: {user_msg}"
+                if hasattr(model, 'system_instruction'):
+                    full_input = f"{preface}\nUser: {user_msg}"
+                else:
+                    full_input = f"{system_prompt}\n\n{preface}\nUser: {user_msg}"
                 chat_session = model.start_chat(history=context["history"])
                 response = chat_session.send_message(full_input)
                 ai_reply = response.text.strip()
@@ -325,7 +409,11 @@ def chat():
             logger.error(f"Gemini API Error: {str(e)}")
             ai_reply = "⚠️ Sorry, I'm temporarily unavailable. Please try again later."
 
-        return jsonify({"reply": ai_reply})
+        return jsonify({
+            "reply": ai_reply,
+            "message_counted": message_counted,
+            "current_count": user_message_counts.get(user_id, 0)
+        })
         
     except Exception as e:
         logger.error(f"Unexpected error in chat route: {str(e)}")

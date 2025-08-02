@@ -9,6 +9,7 @@ A production-ready Flask-based AI health assistant that provides medical guidanc
 - ✅ **Monitoring**: Health check endpoint and production logging
 - ✅ **Performance**: Gunicorn WSGI server and optimized static files
 - ✅ **Deployment**: Ready for Heroku, Railway, DigitalOcean, AWS
+- ✅ **API Management**: Message limits and usage control for cost management
 
 ## Features
 
@@ -20,6 +21,8 @@ A production-ready Flask-based AI health assistant that provides medical guidanc
 - Age and gender-specific medical advice
 - Comprehensive medication database integration
 - **Interactive 3D Background**: Powered by Spline for immersive user experience
+- **Message Limit System**: Session-based message counting to manage API costs
+- **Real-time Counter**: Visual feedback showing remaining messages per session
 
 ## Prerequisites
 
@@ -65,8 +68,6 @@ git push heroku main
 - **DigitalOcean**: Use App Platform with automatic deployments
 - **AWS**: Deploy with Elastic Beanstalk
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment guides.
-
 ## Environment Variables
 
 ### Required
@@ -78,6 +79,20 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment guides.
 - `PORT`: Port number (auto-set by deployment platforms)
 - `LOG_LEVEL`: Logging level (default: INFO)
 
+## API Usage Management
+
+### Message Limits
+- **Session Limit**: 7 messages per user session to manage API costs
+- **Smart Counting**: Only counts actual consultations, not age/gender questions
+- **Visual Feedback**: Real-time counter showing remaining messages
+- **Session Reset**: Users can refresh the page to start a new session
+
+### Cost Control Features
+- Automatic message counting and limit enforcement
+- User-friendly limit reached messages
+- Session-based tracking to prevent abuse
+- Graceful degradation when limits are reached
+
 ## Security & Compliance
 
 - 🔒 **Medical Disclaimers**: Comprehensive legal disclaimers included
@@ -85,6 +100,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment guides.
 - 🔒 **Input Validation**: All user inputs sanitized and validated
 - 🔒 **Session Security**: Secure session management with HTTP-only cookies
 - 🔒 **HTTPS Enforcement**: Security headers and HTTPS redirects
+- 🔒 **API Protection**: Rate limiting and usage controls
 
 ## Monitoring & Health Checks
 
@@ -92,6 +108,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment guides.
 - **Logging**: Comprehensive application logging
 - **Error Tracking**: Graceful error handling and reporting
 - **Performance**: Optimized for production workloads
+- **Debug Endpoints**: `/debug-messages` for message count inspection
 
 ## Medical Safety Features
 
@@ -110,6 +127,8 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment guides.
 - **Quick Actions**: Pre-defined health queries for common symptoms
 - **Real-time Typing Indicators**: Visual feedback during AI responses
 - **Error Recovery**: Graceful error handling with retry functionality
+- **Message Counter**: Visual indicator showing remaining messages per session
+- **Testing Mode Notice**: Clear indication when running in testing mode
 
 ### Spline 3D Background
 
@@ -126,8 +145,7 @@ The 3D background is embedded via iframe from Spline's hosting service, providin
 
 ```
 CuraAI/
-├── app.py              # Main Flask application
-├── config.py           # Production configuration
+├── app.py              # Main Flask application with message limits
 ├── medicine.py         # Medication database
 ├── requirements.txt    # Dependencies
 ├── Procfile           # Heroku deployment
@@ -148,11 +166,22 @@ python app.py
 ### Testing
 - Health check: `curl http://localhost:5000/health`
 - Chat endpoint: `POST /chat` with JSON body
+- Message count: `GET /message-count`
+- Debug messages: `GET /debug-messages`
 
-## License
+### API Endpoints
 
-[Your License Here]
+- `POST /chat` - Main chat endpoint with message limit enforcement
+- `GET /message-count` - Get current message count for user session
+- `POST /reset-messages` - Reset message count for testing
+- `GET /health` - Health check endpoint
+- `GET /debug-messages` - Debug endpoint for message count inspection
 
 ## Support
 
-For deployment issues, see [DEPLOYMENT.md](DEPLOYMENT.md) for troubleshooting guides. 
+For issues related to:
+- **API Limits**: Check message counter and refresh page for new session
+- **Deployment**: Ensure all environment variables are set correctly
+- **Performance**: Monitor logs and health endpoint
+- **Medical Advice**: Always consult healthcare professionals for serious concerns
+

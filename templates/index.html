@@ -53,22 +53,12 @@
               title="3D Orb Animation"
             ></iframe>
           </div>
-          <h1 class="welcome-title">How can I help you today?</h1>
-          <p class="welcome-subtitle">I'm CuraAI, your intelligent virtual health assistant. Describe your symptoms or ask any health-related questions.</p>
-          
-          <div class="quick-actions">
-            <button class="quick-action" onclick="quickAction('headache')">
-              <span class="action-text">Headache</span>
-            </button>
-            <button class="quick-action" onclick="quickAction('fever')">
-              <span class="action-text">Fever</span>
-            </button>
-            <button class="quick-action" onclick="quickAction('stomach')">
-              <span class="action-text">Stomach Pain</span>
-            </button>
-            <button class="quick-action" onclick="quickAction('firstaid')">
-              <span class="action-text">First Aid Kit</span>
-            </button>
+          <div class="welcome-content">
+            <h1>Welcome to CuraAI</h1>
+            <p>Your intelligent virtual health assistant</p>
+            <div class="limit-notice">
+              <small>💡 <strong>Testing Mode:</strong> Limited to 7 AI consultations per session to control API costs</small>
+            </div>
           </div>
         </div>
 
@@ -96,6 +86,17 @@
               </svg>
             </button>
           </form>
+        </div>
+        <div class="message-counter">
+          <div class="counter-info">
+            <span id="message-counter">0/7</span>
+            <div class="info-tooltip" title="This is a testing deployment with API usage limits to control costs. The limit is set to 7 messages per session.">
+              <svg viewBox="0 0 24 24" fill="currentColor" class="info-icon">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+              </svg>
+            </div>
+          </div>
+          <small>Messages remaining</small>
         </div>
       </div>
 
