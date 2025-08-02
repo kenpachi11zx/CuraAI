@@ -16,7 +16,46 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+# Multiple API key support with fallback
+def get_api_keys():
+    """Get all available API keys from environment variables"""
+    api_keys = []
+    i = 1
+    while True:
+        key = os.getenv(f"GEMINI_API_KEY_{i}")
+        if not key:
+            # Also check for the original single key format
+            if i == 1:
+                key = os.getenv("GEMINI_API_KEY")
+            if not key:
+                break
+        api_keys.append(key)
+        i += 1
+    return api_keys
+
+def configure_genai_with_fallback():
+    """Configure Gemini with fallback API keys"""
+    api_keys = get_api_keys()
+    if not api_keys:
+        raise ValueError("No Gemini API keys found in environment variables")
+    
+    # Configure with the first key initially
+    genai.configure(api_key=api_keys[0])
+    logger.info(f"Configured Gemini with primary API key. Total keys available: {len(api_keys)}")
+    return api_keys
+
+# Initialize API keys
+available_api_keys = configure_genai_with_fallback()
+current_key_index = 0
+
+def switch_to_next_api_key():
+    """Switch to the next available API key"""
+    global current_key_index, available_api_keys
+    current_key_index = (current_key_index + 1) % len(available_api_keys)
+    new_key = available_api_keys[current_key_index]
+    genai.configure(api_key=new_key)
+    logger.info(f"Switched to API key {current_key_index + 1} of {len(available_api_keys)}")
+    return new_key
 
 def create_app(config_name=None):
     if config_name is None:
@@ -48,7 +87,12 @@ def health_check():
     return jsonify({
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "api_keys": {
+            "total_available": len(available_api_keys),
+            "current_key_index": current_key_index,
+            "fallback_enabled": len(available_api_keys) > 1
+        }
     })
 
 @app.route("/message-count")
@@ -364,49 +408,73 @@ def chat():
             if is_health_concern and (not context["age"] or not context["gender"]):
                 return jsonify({"reply": "Please provide BOTH your age and gender first so I can give you appropriate medical advice."})
             
-            try:
-                model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_prompt)
-            except TypeError:
-                model = genai.GenerativeModel("gemini-1.5-flash")
+            # Try with current API key, fallback to others if needed
+            max_retries = len(available_api_keys)
+            retry_count = 0
+            ai_reply = None
             
-            preface = f"The user is a {context['age']} year old {context['gender']}. DO NOT ask for age or gender again as this information has already been provided."
-            
-            if context["initial_health_concern"] and not context["has_addressed_initial_concern"] and context["age"] and context["gender"]:
-                if hasattr(model, 'system_instruction'):
-                    initial_input = f"{preface}\nUser: {context['initial_health_concern']}"
-                else:
-                    initial_input = f"{system_prompt}\n\n{preface}\nUser: {context['initial_health_concern']}"
-                chat_session = model.start_chat(history=context["history"])
-                response = chat_session.send_message(initial_input)
-                ai_reply = response.text.strip()
-                
-                context["has_addressed_initial_concern"] = True
-                
-                context["history"].append({"role": "user", "parts": [context["initial_health_concern"]]})
-                context["history"].append({"role": "model", "parts": [ai_reply]})
-                
-                context["initial_health_concern"] = None
-                
-            elif context["initial_health_concern"] and not context["has_addressed_initial_concern"] and (not context["age"] or not context["gender"]):
-                if not context["age"]:
-                    return jsonify({"reply": "To assist you better, may I know your age?"})
-                if not context["gender"]:
-                    return jsonify({"reply": "Thank you. Could you also let me know your gender (male or female)?"})
-                
-            else:
-                if hasattr(model, 'system_instruction'):
-                    full_input = f"{preface}\nUser: {user_msg}"
-                else:
-                    full_input = f"{system_prompt}\n\n{preface}\nUser: {user_msg}"
-                chat_session = model.start_chat(history=context["history"])
-                response = chat_session.send_message(full_input)
-                ai_reply = response.text.strip()
+            while retry_count < max_retries and ai_reply is None:
+                try:
+                    try:
+                        model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_prompt)
+                    except TypeError:
+                        model = genai.GenerativeModel("gemini-1.5-flash")
+                    
+                    preface = f"The user is a {context['age']} year old {context['gender']}. DO NOT ask for age or gender again as this information has already been provided."
+                    
+                    if context["initial_health_concern"] and not context["has_addressed_initial_concern"] and context["age"] and context["gender"]:
+                        if hasattr(model, 'system_instruction'):
+                            initial_input = f"{preface}\nUser: {context['initial_health_concern']}"
+                        else:
+                            initial_input = f"{system_prompt}\n\n{preface}\nUser: {context['initial_health_concern']}"
+                        chat_session = model.start_chat(history=context["history"])
+                        response = chat_session.send_message(initial_input)
+                        ai_reply = response.text.strip()
+                        
+                        context["has_addressed_initial_concern"] = True
+                        
+                        context["history"].append({"role": "user", "parts": [context["initial_health_concern"]]})
+                        context["history"].append({"role": "model", "parts": [ai_reply]})
+                        
+                        context["initial_health_concern"] = None
+                        
+                    elif context["initial_health_concern"] and not context["has_addressed_initial_concern"] and (not context["age"] or not context["gender"]):
+                        if not context["age"]:
+                            return jsonify({"reply": "To assist you better, may I know your age?"})
+                        if not context["gender"]:
+                            return jsonify({"reply": "Thank you. Could you also let me know your gender (male or female)?"})
+                        
+                    else:
+                        if hasattr(model, 'system_instruction'):
+                            full_input = f"{preface}\nUser: {user_msg}"
+                        else:
+                            full_input = f"{system_prompt}\n\n{preface}\nUser: {user_msg}"
+                        chat_session = model.start_chat(history=context["history"])
+                        response = chat_session.send_message(full_input)
+                        ai_reply = response.text.strip()
 
-                context["history"].append({"role": "user", "parts": [user_msg]})
-                context["history"].append({"role": "model", "parts": [ai_reply]})
+                        context["history"].append({"role": "user", "parts": [user_msg]})
+                        context["history"].append({"role": "model", "parts": [ai_reply]})
+                    
+                    # If we get here, the API call was successful
+                    break
+                    
+                except Exception as e:
+                    logger.error(f"Gemini API Error with key {current_key_index + 1}: {str(e)}")
+                    retry_count += 1
+                    
+                    if retry_count < max_retries:
+                        # Switch to next API key
+                        switch_to_next_api_key()
+                        logger.info(f"Retrying with next API key ({retry_count}/{max_retries})")
+                    else:
+                        # All keys failed
+                        logger.error("All API keys have failed")
+                        ai_reply = "⚠️ Sorry, I'm temporarily unavailable. Please try again later."
+                        break
 
         except Exception as e:
-            logger.error(f"Gemini API Error: {str(e)}")
+            logger.error(f"Unexpected error in chat route: {str(e)}")
             ai_reply = "⚠️ Sorry, I'm temporarily unavailable. Please try again later."
 
         return jsonify({

@@ -2,6 +2,12 @@
 
 A production-ready Flask-based AI health assistant that provides medical guidance using Google's Gemini AI.
 
+## 🌐 Live Demo
+
+**🚀 Live Application**: [ https://curaai-ky7e.onrender.com/ ]
+
+The application is currently deployed and running on Render. Try it out for AI-powered health consultations!
+
 ## 🚀 Production Ready Features
 
 - ✅ **Security**: Environment variables, secure headers, input validation
@@ -52,7 +58,27 @@ A production-ready Flask-based AI health assistant that provides medical guidanc
 
 ## Production Deployment
 
-### Heroku (Recommended)
+### Render (Currently Deployed)
+The application is currently deployed on Render and accessible at: [Your Render URL]
+
+**Deployment Steps:**
+1. Connect your GitHub repository to Render
+2. Create a new Web Service
+3. Set the following environment variables:
+   - `GEMINI_API_KEY`: Your Google Gemini API key (or use multiple keys below)
+   - `SECRET_KEY`: Flask secret key for sessions
+   - `FLASK_ENV`: production
+   
+   **For Multiple API Keys (Recommended):**
+   - `GEMINI_API_KEY_1`: Your primary Google Gemini API key
+   - `GEMINI_API_KEY_2`: Your secondary API key (fallback)
+   - `GEMINI_API_KEY_3`: Your tertiary API key (additional fallback)
+   - ... add more as needed
+4. Set build command: `pip install -r requirements.txt`
+5. Set start command: `gunicorn app:app`
+6. Deploy!
+
+### Heroku
 ```bash
 # Set environment variables
 heroku config:set GEMINI_API_KEY=your_actual_api_key
@@ -71,13 +97,26 @@ git push heroku main
 ## Environment Variables
 
 ### Required
-- `GEMINI_API_KEY`: Your Google Gemini API key
+- `GEMINI_API_KEY`: Your Google Gemini API key (or use multiple keys below)
 - `SECRET_KEY`: Flask secret key for sessions (use strong random key)
 
 ### Optional
 - `FLASK_ENV`: Set to "production" for deployment
 - `PORT`: Port number (auto-set by deployment platforms)
 - `LOG_LEVEL`: Logging level (default: INFO)
+
+### Multiple API Keys (Fallback Support)
+For high availability and cost management, you can configure multiple API keys:
+- `GEMINI_API_KEY_1`: Primary API key
+- `GEMINI_API_KEY_2`: Secondary API key (fallback)
+- `GEMINI_API_KEY_3`: Tertiary API key (fallback)
+- ... and so on
+
+**How it works:**
+- The app automatically tries the next key if one fails or reaches usage limits
+- Seamless fallback with no user interruption
+- Logs show which key is being used and when fallbacks occur
+- Health endpoint shows API key status
 
 ## API Usage Management
 
@@ -104,11 +143,25 @@ git push heroku main
 
 ## Monitoring & Health Checks
 
-- **Health Endpoint**: `GET /health` for monitoring
-- **Logging**: Comprehensive application logging
+- **Health Endpoint**: `GET /health` for monitoring (includes API key status)
+- **Logging**: Comprehensive application logging with API key usage tracking
 - **Error Tracking**: Graceful error handling and reporting
 - **Performance**: Optimized for production workloads
 - **Debug Endpoints**: `/debug-messages` for message count inspection
+- **API Key Monitoring**: Automatic fallback logging and health status
+
+### API Key Status Monitoring
+The health endpoint (`/health`) now includes API key information:
+```json
+{
+  "status": "healthy",
+  "api_keys": {
+    "total_available": 3,
+    "current_key_index": 0,
+    "fallback_enabled": true
+  }
+}
+```
 
 ## Medical Safety Features
 
