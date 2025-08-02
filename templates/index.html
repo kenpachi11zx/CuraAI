@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CuraAI - Virtual Health Assistant</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏥</text></svg>">
+</head>
+<body>
+  <div class="container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <div class="logo-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+          </div>
+          <div class="logo-text">CuraAI</div>
+        </div>
+        <button class="new-chat-btn" onclick="startNewChat()">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+          </svg>
+          New Chat
+        </button>
+      </div>
+      
+      <div class="chat-history">
+        <div class="empty-state">
+          <h3>Nothing here yet</h3>
+          <p>Your health consultations will appear here</p>
+        </div>
+      </div>
+      
+
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <div class="chat-container">
+        <!-- Welcome Screen -->
+        <div class="welcome-screen" id="welcome-screen">
+          <div class="spline-container">
+            <iframe 
+              src="https://my.spline.design/orb-aCHvwW9kOOBzUnex0nTm7goI/" 
+              width="100%" 
+              height="100%" 
+              frameborder="0"
+              title="3D Orb Animation"
+            ></iframe>
+          </div>
+          <h1 class="welcome-title">How can I help you today?</h1>
+          <p class="welcome-subtitle">I'm CuraAI, your intelligent virtual health assistant. Describe your symptoms or ask any health-related questions.</p>
+          
+          <div class="quick-actions">
+            <button class="quick-action" onclick="quickAction('headache')">
+              <span class="action-text">Headache</span>
+            </button>
+            <button class="quick-action" onclick="quickAction('fever')">
+              <span class="action-text">Fever</span>
+            </button>
+            <button class="quick-action" onclick="quickAction('stomach')">
+              <span class="action-text">Stomach Pain</span>
+            </button>
+            <button class="quick-action" onclick="quickAction('firstaid')">
+              <span class="action-text">First Aid Kit</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Chat Box -->
+        <div class="chat-box" id="chat-box">
+          <!-- Messages will be dynamically added here -->
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <div class="input-container">
+        <div class="input-wrapper">
+          <form id="chat-form">
+            <input 
+              type="text" 
+              id="user-input" 
+              placeholder="Ask anything..." 
+              required 
+              autocomplete="off"
+              maxlength="500"
+            >
+            <button type="submit" class="send-button">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+              </svg>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Disclaimer -->
+      <div class="disclaimer">
+        <strong>Medical Disclaimer:</strong> This AI assistant provides general health information and is not a substitute for professional medical advice, diagnosis, or treatment. Always consult with a qualified healthcare provider for medical concerns.
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
