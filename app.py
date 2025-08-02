@@ -290,11 +290,18 @@ def chat():
             if is_health_concern and (not context["age"] or not context["gender"]):
                 return jsonify({"reply": "Please provide BOTH your age and gender first so I can give you appropriate medical advice."})
             
-            model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_prompt)
+            try:
+                model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_prompt)
+            except TypeError:
+                model = genai.GenerativeModel("gemini-1.5-flash")
+            
             preface = f"The user is a {context['age']} year old {context['gender']}. DO NOT ask for age or gender again as this information has already been provided."
             
             if context["initial_health_concern"] and not context["has_addressed_initial_concern"] and context["age"] and context["gender"]:
-                initial_input = f"{preface}\nUser: {context['initial_health_concern']}"
+                if hasattr(model, 'system_instruction'):
+                    initial_input = f"{preface}\nUser: {context['initial_health_concern']}"
+                else:
+                    initial_input = f"{system_prompt}\n\n{preface}\nUser: {context['initial_health_concern']}"
                 chat_session = model.start_chat(history=context["history"])
                 response = chat_session.send_message(initial_input)
                 ai_reply = response.text.strip()
@@ -313,7 +320,10 @@ def chat():
                     return jsonify({"reply": "Thank you. Could you also let me know your gender (male or female)?"})
                 
             else:
-                full_input = f"{preface}\nUser: {user_msg}"
+                if hasattr(model, 'system_instruction'):
+                    full_input = f"{preface}\nUser: {user_msg}"
+                else:
+                    full_input = f"{system_prompt}\n\n{preface}\nUser: {user_msg}"
                 chat_session = model.start_chat(history=context["history"])
                 response = chat_session.send_message(full_input)
                 ai_reply = response.text.strip()
